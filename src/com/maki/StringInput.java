@@ -7,6 +7,7 @@ import java.util.Optional;
  */
 public class StringInput implements ParserInput {
     private String theString;
+    private int counter = 0;
 
     private int index = 0;
     public StringInput(String theString) {
@@ -16,10 +17,20 @@ public class StringInput implements ParserInput {
     //TODO make this safe! We don't want index out of bounds errors
     @Override
     public char read() {
+        System.out.println(String.valueOf(theString.charAt(index)) + " i: " + index);
+        if (counter == 25) {
+            System.exit(1);
+            return 'a';
+        } else {
+            counter++;
+        }
         return theString.charAt(index);
     }
+
+
     @Override
     public void advance() {
+        System.out.println("Advance");
         index += 1;
     }
 

@@ -1,8 +1,11 @@
+package com.maki;
+
 import com.maki.Parser;
 import com.maki.ParserResult;
 import org.junit.Test;
 
 import javax.swing.text.html.Option;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -127,6 +130,8 @@ public class ParserTest {
     @Test
     public void testRepeat() {
         Parser parser = repeat(literal('a'), 2);
+
+
         ParserResult result = parser.parse("aaabcasd*asd");
         List<String> resultList = result.getParsed().get();
 
@@ -142,10 +147,58 @@ public class ParserTest {
 
 
         assertThat(resultOptional.isPresent(), equalTo(false));
+    }
 
-        and(repeat(literal('a'), 5).collapse(), repeat(literal('b'), 5).collapse());
-        //matches only: aaaaabbbbb (with anything afterward) but leaves the results array: [aaaaa, bbbbb]
-        //instead of [a,a,a,a,a,b,b,b,b,b]
+    @Test
+    public void testAnyExcept() {
+        Parser parser = anyExcept('a');
+        ParserResult result = parser.parse("baa");
+        List<String> resultList = result.getParsed().get();
+
+        assertThat(resultList.size(), equalTo(1));
+        assertThat(resultList.get(0), equalTo("b"));
+    }
+
+    @Test
+    public void testAnyExceptFail() {
+        Parser parser = anyExcept('a');
+        ParserResult result = parser.parse("ababcasd*asd");
+        Optional<List<String>> resultOptional = result.getParsed();
+
+
+        assertThat(resultOptional.isPresent(), equalTo(false));
+    }
+
+    @Test
+    public void testRealParsing() {
+        //What we want to parse:
+        //"ABBB*ABC*ASDAS*"
+        //Should be broken into:
+        //["ABBB", "*ABC*", "ASDAS*"]
+
+        //Steps:
+        //This surrounding text parser can be simplified into:
+        //repeat(findFirstInstanceOfSurroundedText)
+        //findFirstInstanceOfSurroundedText can be turned into
+        //
+
+
+        Parser parseUntilStar = repeatUntilFail(anyExcept('*'));
+
+
+        Parser parser = repeatUntilFail(and(parseUntilStar, and(any(), parseUntilStar)));
+        //Repeat until fail is unsafe because it can succeed without advancing the input, which messes with our
+        // assumptions. I need to decide which to go with and then change everything to work with it.
+        ParserResult result = parser.parse("ABBB*ABC*ASDAS*");
+        List<String> resultList = result.getParsed().get();
+        for (String item : resultList) {
+            System.out.print(item + ", ");
+        }
+        assertThat(resultList.size(), equalTo(3));
+        assertThat(resultList.get(0), equalTo("ABB"));
+        assertThat(resultList.get(1), equalTo("*ABC*"));
+        assertThat(resultList.get(2), equalTo("ASDAS*"));
+
     }
 
 }

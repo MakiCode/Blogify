@@ -9,7 +9,6 @@ import java.util.Optional;
  */
 public class Parser {
     private ParserFunction function;
-    private boolean collapsable;
 
     @FunctionalInterface
     private interface ParserFunction {
@@ -18,7 +17,6 @@ public class Parser {
          * must use input.hasNext() to ensure that they have something to read. Any method which uses input.advance()
          * must take care to reverse any advancements if future processing reveals that parsing to be illegal (see and()
          * ) for an example of this
-         *
          *
          * @param input
          * @return
@@ -53,18 +51,19 @@ public class Parser {
                 return Optional.empty();
             }
         }
-        );
+        ));
     }
 
     /**
      * Or runs the first parser and returns it's results, unless it fails. In that case, it runs the second parser and
      * returns the results of that parser
+     *
      * @param parser1
      * @param parser2
      * @return
      */
     public static Parser or(Parser parser1, Parser parser2) {
-        return new Parser((input)-> {
+        return new Parser((input) -> {
             Optional<List<String>> result1 = parser1.parse(input);
             if (result1.isPresent()) {
                 return result1;
@@ -83,24 +82,45 @@ public class Parser {
      * @return
      */
     public static Parser and(Parser parser1, Parser parser2) {
-        return new Parser((input, result)-> {
+        return new Parser((input) -> {
+            if(!input.hasNext()) {
+                return Optional.empty();
+            }
             int position = input.getIndex();
-            Optional<List<String>> result1 = parser1.parse(input);
 
+            Optional<List<String>> result1 = parser1.parse(input);
             if (!result1.isPresent()) {
-                input.setIndex(position); //Rewind input if failed
+                input.setIndex(position);
                 return Optional.empty();
             }
 
             Optional<List<String>> result2 = parser2.parse(input);
             if (!result2.isPresent()) {
-                input.setIndex(position); //Rewind input if failed
+                input.setIndex(position);
                 return Optional.empty();
-            }
+            };
 
-            return Optional.of(result1.get() + result2.get());
+
+            StringBuilder builder1 = Utility.turnListToString(result1.get());
+            StringBuilder builder2 = Utility.turnListToString(result2.get());
+
+            Utility.concatenateBuilder(builder1, builder2);
+
+            Optional<List<String>> result = Optional.of(new ArrayList<>());
+            result.get().add(builder1.toString());
+            return result;
         });
     }
+
+
+    private static boolean rewindIfNotPresent(ParserInput input, int position, Optional<?> optional) {
+        if (!optional.isPresent()) {
+            //Rewind input if failed
+            return true;
+        }
+        return false;
+    }
+
 
     /**
      * reads any character, then advances input by one
@@ -112,11 +132,30 @@ public class Parser {
             if (input.hasNext()) {
                 char inputChar = input.read();
                 input.advance();
-                return Optional.of(String.valueOf(inputChar));
+                List<String> result = new ArrayList<>();
+                result.add(String.valueOf(inputChar));
+                return Optional.of(result);
             } else {
                 return Optional.empty();
             }
         });
+    }
+
+    public static Parser anyExcept(char c) {
+        return new Parser((input -> {
+            if (input.hasNext()) {
+                char inputChar = input.read();
+                if (inputChar == c) {
+                    return Optional.empty();
+                }
+                input.advance();
+                List<String> result = new ArrayList<>();
+                result.add(String.valueOf(inputChar));
+                return Optional.of(result);
+            } else {
+                return Optional.empty();
+            }
+        }));
     }
 
     /**
@@ -127,7 +166,7 @@ public class Parser {
      * Repeat the parsing N times then return the output.
      *
      * @param parser
-     * @param N must be greater than 0
+     * @param N      must be greater than 0
      * @return
      */
     public static Parser repeat(Parser parser, int N) {
@@ -136,43 +175,46 @@ public class Parser {
         }
 
         return new Parser(input -> {
-            StringBuilder output = new StringBuilder("");
-            Optional<String> parserOutput;
+            Optional<List<String>> output = Optional.of(new ArrayList<>());
+            Optional<List<String>> parserOutput;
 
             for (int i = 0; i < N; i++) {
                 parserOutput = parser.parse(input);
                 if (!parserOutput.isPresent()) {
-                    output = new StringBuilder(""); //because, in this method we use the empty string to signify a
-                    // failure. And we do that because someone was worried about efficiency and decided to use
-                    // a StringBuilder
+                    output = Optional.empty();
                     break;
                 }
-                output.append(parserOutput.get());
+                output.get().addAll(parserOutput.get());
             }
-
-            String outputString = output.toString();
-            if (outputString.equals("")) {
-                return Optional.empty();
+            if (output.isPresent()) {
+                Optional<List<String>> result = Optional.of(new ArrayList<>());
+                result.get().add(Utility.turnListToString(output.get()).toString());
+                return result;
+            } else {
+                return output;
             }
-            return Optional.of(outputString);
         });
     }
 
     /**
      * Keeps parsing with the given parser until the parser fails. This is the only parser that can legally return an
      * empty string
+     *
      * @param parser
      * @return
      */
     public static Parser repeatUntilFail(Parser parser) {
         return new Parser(input -> {
-            StringBuilder output = new StringBuilder("");
-            Optional<String> parserOutput = parser.parse(input);
+            Optional<List<String>> output = Optional.of(new ArrayList<>());
+            Optional<List<String>> parserOutput = parser.parse(input);
             while (parserOutput.isPresent()) {
-                output.append(parserOutput.get());
+                output.get().addAll(parserOutput.get());
                 parserOutput = parser.parse(input);
             }
-            return Optional.of(output.toString());
+            StringBuilder builder = Utility.turnListToString(output.get());
+            Optional<List<String>> result = Optional.of(new ArrayList<>());
+            result.get().add(builder.toString());
+            return result;
         });
     }
 
@@ -183,6 +225,6 @@ public class Parser {
     }
 
     private Optional<List<String>> parse(ParserInput input) {
-        return function.parse(input, new ArrayList<String>());
+        return function.parse(input);
     }
 }
