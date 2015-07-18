@@ -36,7 +36,7 @@ public class StringInput implements ParserInput {
 
     public void setIndex(int index) {
         if(index < 0 || index > theString.length() - 1) {
-            throw new IndexOutOfBoundsException("Need to set the index between 0 and " + (theString.length() - 1));
+            throw new IndexOutOfBoundsException("Need to set the index between 0 merge " + (theString.length() - 1));
         }
         this.index = index;
     }

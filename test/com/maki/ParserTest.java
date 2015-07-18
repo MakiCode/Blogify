@@ -1,11 +1,7 @@
 package com.maki;
 
-import com.maki.Parser;
-import com.maki.ParserResult;
 import org.junit.Test;
 
-import javax.swing.text.html.Option;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,13 +63,51 @@ public class ParserTest {
     }
 
     @Test
-    public void andSuccess() {
-        Parser parser = and(literal('a'), literal('b'));
+    public void mergeSuccess() {
+        Parser parser = merge(literal('a'), literal('b'));
         ParserResult result = parser.parse("abcd");
         List<String> resultList = result.getParsed().get();
 
         assertThat(resultList.size(), equalTo(1));
         assertThat(resultList.get(0), equalTo("ab"));
+    }
+
+    @Test
+    public void mergeFailA() {
+        Parser parser = merge(literal('a'), literal('b'));
+        ParserResult result = parser.parse("acd");
+        Optional<List<String>> resultOptional = result.getParsed();
+
+        assertThat(resultOptional.isPresent(), equalTo(false));
+    }
+    @Test
+    public void mergeFailB() {
+        Parser parser = merge(literal('a'), literal('b'));
+        ParserResult result = parser.parse("bcd");
+        Optional<List<String>> resultOptional = result.getParsed();
+
+        assertThat(resultOptional.isPresent(), equalTo(false));
+    }
+    @Test
+    public void mergeFailC() {
+        Parser parser = merge(literal('a'), literal('b'));
+        ParserResult result = parser.parse("bad");
+        Optional<List<String>> resultOptional = result.getParsed();
+
+        assertThat(resultOptional.isPresent(), equalTo(false));
+    }
+
+
+    //--------------------
+    @Test
+    public void andSuccess() {
+        Parser parser = and(literal('a'), literal('b'));
+        ParserResult result = parser.parse("abcd");
+        List<String> resultList = result.getParsed().get();
+
+        assertThat(resultList.size(), equalTo(2));
+        assertThat(resultList.get(0), equalTo("a"));
+        assertThat(resultList.get(1), equalTo("b"));
     }
 
     @Test
@@ -100,11 +134,12 @@ public class ParserTest {
 
         assertThat(resultOptional.isPresent(), equalTo(false));
     }
+    //--------------------
 
     @Test
     public void testAny() {
         Parser parser = any();
-        //Think about how to test?
+        //TODO Think about how to test?
     }
 
     @Test
@@ -121,10 +156,8 @@ public class ParserTest {
     public void testRepeatUntilFailInstaFail() {
         Parser parser = repeatUntilFail(literal('a'));
         ParserResult result = parser.parse("baaabcasd*asd");
-        List<String> resultList = result.getParsed().get();
-
-        assertThat(resultList.size(), equalTo(1));
-        assertThat(resultList.get(0), equalTo(""));
+        Optional<List<String>> resultOptional = result.getParsed();
+        assertThat(resultOptional.isPresent(), equalTo(false));
     }
 
     @Test
@@ -186,11 +219,12 @@ public class ParserTest {
         Parser parseUntilStar = repeatUntilFail(anyExcept('*'));
 
 
-        Parser parser = repeatUntilFail(and(parseUntilStar, and(any(), parseUntilStar)));
+        Parser parser = repeatUntilFail(and(parseUntilStar, merge(any(), parseUntilStar)));
         //Repeat until fail is unsafe because it can succeed without advancing the input, which messes with our
-        // assumptions. I need to decide which to go with and then change everything to work with it.
+        // assumptions. I need to decide which to go with merge then change everything to work with it.
         ParserResult result = parser.parse("ABBB*ABC*ASDAS*");
         List<String> resultList = result.getParsed().get();
+        System.out.print("List: ");
         for (String item : resultList) {
             System.out.print(item + ", ");
         }
