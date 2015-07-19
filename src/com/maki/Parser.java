@@ -65,9 +65,12 @@ public class Parser {
     public static Parser or(Parser parser1, Parser parser2) {
         return new Parser((input) -> {
             Optional<List<String>> result1 = parser1.parse(input);
+//            int position = input.getIndex();
             if (result1.isPresent()) {
                 return result1;
             }
+
+//            input.setIndex(position);
             //Logical Or optimization,
             // a || b == if(a) { a } else { b }
             return parser2.parse(input);
@@ -78,50 +81,39 @@ public class Parser {
      * Runs the two parsers in series, first parser1, then parser2, and merges the result. If either parser fails, it rewinds the input.
      *
      * @param parser1
-     * @param parser2
+     * @param parsers
      * @return
      */
-    public static Parser merge(Parser parser1, Parser parser2) {
+    public static Parser merge(Parser parser) {
         return new Parser((input) -> {
-            if(!input.hasNext()) {
+            if (!input.hasNext()) {
                 return Optional.empty();
             }
             int position = input.getIndex();
 
-            Optional<List<String>> result1 = parser1.parse(input);
-            if (!result1.isPresent()) {
+            Optional<List<String>> parserResult = parser.parse(input);
+            if (!parserResult.isPresent()) {
                 input.setIndex(position);
                 return Optional.empty();
             }
 
-            Optional<List<String>> result2 = parser2.parse(input);
-            if (!result2.isPresent()) {
-                input.setIndex(position);
-                return Optional.empty();
-            };
-
-
-            StringBuilder builder1 = Utility.turnListToString(result1.get());
-            StringBuilder builder2 = Utility.turnListToString(result2.get());
-
-            Utility.concatenateBuilder(builder1, builder2);
-
-            Optional<List<String>> result = Optional.of(new ArrayList<>());
-            result.get().add(builder1.toString());
-            return result;
+            Optional<List<String>> methodResult = Optional.of(new ArrayList<>());
+            methodResult.get().add(Utility.turnListToString(parserResult.get()).toString());
+            return methodResult;
         });
     }
+
     /**
      * Runs the two parsers in series, first parser1, then parser2.. If it fails, it rewinds the input.
      * Ths does not merge the result
      *
      * @param parser1
-     * @param parser2
+     * @param parsers
      * @return
      */
-    public static Parser and(Parser parser1, Parser parser2) {
+    public static Parser and(Parser parser1, Parser... parsers) {
         return new Parser((input) -> {
-            if(!input.hasNext()) {
+            if (!input.hasNext()) {
                 return Optional.empty();
             }
             int position = input.getIndex();
@@ -132,20 +124,22 @@ public class Parser {
                 return Optional.empty();
             }
 
-            Optional<List<String>> result2 = parser2.parse(input);
-            if (!result2.isPresent()) {
-                input.setIndex(position);
-                return Optional.empty();
-            };
+            List<String> results = new ArrayList<>();
+            results.add(Utility.turnListToString(result1.get()).toString());
 
+            if (parsers != null) {
+                for (Parser parser : parsers) {
+                    Optional<List<String>> result = parser.parse(input);
+                    if (!result.isPresent()) {
+                        input.setIndex(position);
+                        return Optional.empty();
+                    }
+                    ;
+                    results.add(Utility.turnListToString(result.get()).toString());
+                }
+            }
 
-            StringBuilder builder1 = Utility.turnListToString(result1.get());
-            StringBuilder builder2 = Utility.turnListToString(result2.get());
-
-            Optional<List<String>> result = Optional.of(new ArrayList<>());
-            result.get().add(builder1.toString());
-            result.get().add(builder2.toString());
-            return result;
+            return Optional.of(results);
         });
     }
 
@@ -223,13 +217,7 @@ public class Parser {
                 }
                 output.get().addAll(parserOutput.get());
             }
-            if (output.isPresent()) {
-                Optional<List<String>> result = Optional.of(new ArrayList<>());
-                result.get().add(Utility.turnListToString(output.get()).toString());
-                return result;
-            } else {
-                return output;
-            }
+            return output;
         });
     }
 
@@ -247,13 +235,10 @@ public class Parser {
                 output.get().addAll(parserOutput.get());
                 parserOutput = parser.parse(input);
             }
-            if(output.get().size() == 0) {
+            if (output.get().size() == 0) {
                 return Optional.empty();
             }
-            StringBuilder builder = Utility.turnListToString(output.get());
-            Optional<List<String>> result = Optional.of(new ArrayList<>());
-            result.get().add(builder.toString());
-            return result;
+            return output;
         });
     }
 
