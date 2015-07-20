@@ -64,7 +64,6 @@ public class ParserTest {
 
     @Test
     public void mergeSuccess() {
-        //TODO
         Parser parser = merge(and(literal('a'), literal('b')));
         ParserResult result = parser.parse("abcd");
         List<String> resultList = result.getParsed().get();
@@ -75,7 +74,6 @@ public class ParserTest {
 
     @Test
     public void mergeFail() {
-        //TODO
         Parser parser = merge(and(literal('a'), literal('b')));
         ParserResult result = parser.parse("acd");
         Optional<List<String>> resultOptional = result.getParsed();
@@ -155,7 +153,7 @@ public class ParserTest {
 
     @Test
     public void testRepeatUntilFail() {
-        Parser parser = repeatUntilFail(literal('a'));
+        Parser parser = repeatUntil(literal('a'), Parser::repeatUntilFail);
         ParserResult result = parser.parse("aaabcasd*asd");
         List<String> resultList = result.getParsed().get();
 
@@ -167,7 +165,7 @@ public class ParserTest {
 
     @Test
     public void testRepeatUntilFailInstaFail() {
-        Parser parser = repeatUntilFail(literal('a'));
+        Parser parser = repeatUntil(literal('a'), Parser::repeatUntilFail);
         ParserResult result = parser.parse("baaabcasd*asd");
         Optional<List<String>> resultOptional = result.getParsed();
         assertThat(resultOptional.isPresent(), equalTo(false));
@@ -211,78 +209,35 @@ public class ParserTest {
         ParserResult result = parser.parse("ababcasd*asd");
         Optional<List<String>> resultOptional = result.getParsed();
 
-
         assertThat(resultOptional.isPresent(), equalTo(false));
     }
 
-    //    @Test
-//    public void testRepeatUnless() {
-//        Parser parser = repeat(literal('b'));
-//        ParserResult result = parser.parse("bbadsda");
-//
-//        assertThat(result.getParsed().isPresent(), equalTo(false));
-//    }
-//
-//    @Test
-//    public void testRepeatUnless2() {
-//        Parser parser = repeatUnless(and(literal('a'), literal('b')));
-//        ParserResult result = parser.parse()
-//    }
-//
     @Test
     public void testRealParsing() {
-        //What we want to parse:
-        //"ABBB*ABC*ASDAS*"
-        //Should be broken into:
-        //["ABBB", "*ABC*", "ASDAS*"]
+//        Parser parseUntilStar = repeatUntil(anyExcept('*'), Parser::repeatUntilFail);
+//        Parser parseBold = merge(and(any(), parseUntilStar, any()));
+//        Parser findSecondStar = ;
+//        This needs to succeed if there are no stars left in the input, and fail if there are stars left in the input
+//        Parser parser = and(
+//                                parseUntilStar,
+//                                or(
+//                                        repeatUntil(anyExcept('*'), ),
+//                                        parseBold
+//                                )
+//                        );
+//
 
-        //Steps:
-        //This surrounding text parser can be simplified into:
-        //repeat(findFirstInstanceOfSurroundedText)
-        //findFirstInstanceOfSurroundedText can be turned into
-        //
-
-
-        Parser parseUntilStar = repeatUntilFail(anyExcept('*'));
-        Parser parseBold = merge(and(any(), parseUntilStar, any()));
-        Parser findSecondStar = ;
-         //This needs to succeed if there are no stars left in the input, and fail if there are stars left in the input
-        Parser parser = and(
-                                parseUntilStar,
-                                or(
-                                        findSecondStar,
-                                        parseBold
-                                )
-                        );
-
-        //State machine with three states:
-        //Reading random text
-        //Hit a one *
-        //Hit a second *
-
-        //passUntilStar we need something that will fail once it hits a fail, but also has the function
-        //of repeat
-
-        //What I want is a parser that goes until the second star, but leaves the input at the first star
-//        Parser  parser = repeatUntilFail(or(merge(parseUntilStar), parseBold));
-
-
-        ParserResult result = parser.parse("ABBB*ABC*ASDAS*");
-        List<String> resultList = result.getParsed().get();
-        System.out.print("List: ");
-        for (String item : resultList) {
-            System.out.print(item + ", ");
-        }
-        System.out.print("rest: '" + result.getRest().get() + "'");
-        assertThat(resultList.size(), equalTo(2));
-        assertThat(resultList.get(0), equalTo("ABBB"));
-        assertThat(resultList.get(1), equalTo("*ABC*"));
-        assertThat(resultList.get(2), equalTo("ASDAS*")); //So... this works. But I need to test it on multiple
-        //star strings (it should work fine) and then I need to find some way to add the rest() into the results
-        //Also, converting strings to tokens?????? TODO the stuff mentioned and I need to modification make a
-        // modification to the repeat(), merging and non merging kinds. I think I need a separate function which does
-        // merging. But I need to make sure that this function doesn't have the problems that repeatUntilFail() has
-        // (successful parsing without advancing input)
+//        ParserResult result = parser.parse("ABBB*ABC*ASDAS*");
+//        List<String> resultList = result.getParsed().get();
+//        System.out.print("List: ");
+//        for (String item : resultList) {
+//            System.out.print(item + ", ");
+//        }
+//        System.out.print("rest: '" + result.getRest().get() + "'");
+//        assertThat(resultList.size(), equalTo(2));
+//        assertThat(resultList.get(0), equalTo("ABBB"));
+//        assertThat(resultList.get(1), equalTo("*ABC*"));
+//        assertThat(resultList.get(2), equalTo("ASDAS*"));
 
     }
 

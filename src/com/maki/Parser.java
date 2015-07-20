@@ -3,28 +3,20 @@ package com.maki;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * Created by trentonmaki on 7/15/15.
  */
 public class Parser {
-    private ParserFunction function;
+    private Function<ParserInput, Optional<List<String>>> function;
 
-    @FunctionalInterface
-    private interface ParserFunction {
-        /**
-         * Parse the input merge return the results or Optional.empty() if failed. Methods that use input.read()
-         * must use input.hasNext() to ensure that they have something to read. Any method which uses input.advance()
-         * must take care to reverse any advancements if future processing reveals that parsing to be illegal (see merge()
-         * ) for an example of this
-         *
-         * @param input
-         * @return
-         */
-        Optional<List<String>> parse(ParserInput input);
+    public static boolean repeatUntilFail(StringInput stringInput) {
+        return true;
     }
 
-    private Parser(ParserFunction function) {
+    private Parser(Function<ParserInput, Optional<List<String>>> function) {
         this.function = function;
     }
 
@@ -55,7 +47,7 @@ public class Parser {
     }
 
     /**
-     * Or runs the first parser merge returns it's results, unless it fails. In that case, it runs the second parser merge
+     * Runs the first parser and returns the results, unless it fails. In that case it runs the second parser and
      * returns the results of that parser
      *
      * @param parser1
@@ -65,12 +57,10 @@ public class Parser {
     public static Parser or(Parser parser1, Parser parser2) {
         return new Parser((input) -> {
             Optional<List<String>> result1 = parser1.parse(input);
-//            int position = input.getIndex();
             if (result1.isPresent()) {
                 return result1;
             }
 
-//            input.setIndex(position);
             //Logical Or optimization,
             // a || b == if(a) { a } else { b }
             return parser2.parse(input);
@@ -78,10 +68,9 @@ public class Parser {
     }
 
     /**
-     * Runs the two parsers in series, first parser1, then parser2, and merges the result. If either parser fails, it rewinds the input.
+     * Runs the given parser, then merges all the resulting list into one item. Good for grouping results
      *
-     * @param parser1
-     * @param parsers
+     * @param parser
      * @return
      */
     public static Parser merge(Parser parser) {
@@ -104,21 +93,21 @@ public class Parser {
     }
 
     /**
-     * Runs the two parsers in series, first parser1, then parser2.. If it fails, it rewinds the input.
-     * Ths does not merge the result
+     * Runs the the given parsers in series, one after the other. If any one of the parsers fails
+     * it rewinds the input and fails
      *
-     * @param parser1
+     * @param parser
      * @param parsers
      * @return
      */
-    public static Parser and(Parser parser1, Parser... parsers) {
+    public static Parser and(Parser parser, Parser... parsers) {
         return new Parser((input) -> {
             if (!input.hasNext()) {
                 return Optional.empty();
             }
             int position = input.getIndex();
 
-            Optional<List<String>> result1 = parser1.parse(input);
+            Optional<List<String>> result1 = parser.parse(input);
             if (!result1.isPresent()) {
                 input.setIndex(position);
                 return Optional.empty();
@@ -128,8 +117,8 @@ public class Parser {
             results.add(Utility.turnListToString(result1.get()).toString());
 
             if (parsers != null) {
-                for (Parser parser : parsers) {
-                    Optional<List<String>> result = parser.parse(input);
+                for (Parser p : parsers) {
+                    Optional<List<String>> result = p.parse(input);
                     if (!result.isPresent()) {
                         input.setIndex(position);
                         return Optional.empty();
@@ -143,19 +132,8 @@ public class Parser {
         });
     }
 
-
-    private static boolean rewindIfNotPresent(ParserInput input, int position, Optional<?> optional) {
-        if (!optional.isPresent()) {
-            //Rewind input if failed
-            return true;
-        }
-        return false;
-    }
-
-
     /**
-     * reads any character, then advances input by one
-     *
+     * Matches any single character
      * @return
      */
     public static Parser any() {
@@ -172,6 +150,11 @@ public class Parser {
         });
     }
 
+    /**
+     * The logical opposite of literal
+     * @param c
+     * @return
+     */
     public static Parser anyExcept(char c) {
         return new Parser((input -> {
             if (input.hasNext()) {
@@ -189,11 +172,7 @@ public class Parser {
         }));
     }
 
-    /**
-     *
-     */
-
-    /**
+  /*
      * Repeat the parsing N times then return the output.
      *
      * @param parser
@@ -227,7 +206,7 @@ public class Parser {
      * @param parser
      * @return
      */
-    public static Parser repeatUntilFail(Parser parser) {
+    public static Parser repeatUntil(Parser parser, Predicate<StringInput> predicate) {
         return new Parser(input -> {
             Optional<List<String>> output = Optional.of(new ArrayList<>());
             Optional<List<String>> parserOutput = parser.parse(input);
@@ -242,13 +221,21 @@ public class Parser {
         });
     }
 
+    /**
+     * Take the string, and parse it with the defined rule(s)
+     *
+     * @param input
+     * @return
+     */
     public ParserResult parse(String input) {
         ParserInput parserInput = new StringInput(input);
-        Optional<List<String>> result = this.function.parse(parserInput);
+        Optional<List<String>> result = this.function.apply(parserInput);
         return new ParserResult(result, parserInput);
     }
 
     private Optional<List<String>> parse(ParserInput input) {
-        return function.parse(input);
+        return function.apply(input);
     }
 }
+
+//TODO check out https://github.com/jneen/parsimmon for a refrence implementation
