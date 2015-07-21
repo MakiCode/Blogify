@@ -12,10 +12,6 @@ import java.util.function.Predicate;
 public class Parser {
     private Function<ParserInput, Optional<List<String>>> function;
 
-    public static boolean repeatUntilFail(StringInput stringInput) {
-        return true;
-    }
-
     private Parser(Function<ParserInput, Optional<List<String>>> function) {
         this.function = function;
     }
@@ -206,7 +202,7 @@ public class Parser {
      * @param parser
      * @return
      */
-    public static Parser repeatUntil(Parser parser, Predicate<StringInput> predicate) {
+    public static Parser repeatUntil(Parser parser) {
         return new Parser(input -> {
             Optional<List<String>> output = Optional.of(new ArrayList<>());
             Optional<List<String>> parserOutput = parser.parse(input);
@@ -221,6 +217,25 @@ public class Parser {
         });
     }
 
+    public static Parser fail() {
+        return new Parser(parserInput -> {
+           return Optional.empty();
+        });
+    }
+
+    public Parser chain(Function<List<String>, Parser> function) {
+        Parser that = this;
+        return new Parser(parserInput -> {
+           Optional<List<String>> result = that.parse(parserInput);
+            System.out.println(result);
+            if(result.isPresent()) {
+                Parser parser = function.apply(result.get());
+                return parser.parse(parserInput);
+            } else {
+              return Optional.empty();
+            }
+        });
+    }
     /**
      * Take the string, and parse it with the defined rule(s)
      *

@@ -1,5 +1,6 @@
 package com.maki;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
@@ -153,7 +154,7 @@ public class ParserTest {
 
     @Test
     public void testRepeatUntilFail() {
-        Parser parser = repeatUntil(literal('a'), Parser::repeatUntilFail);
+        Parser parser = repeatUntil(literal('a'));
         ParserResult result = parser.parse("aaabcasd*asd");
         List<String> resultList = result.getParsed().get();
 
@@ -165,7 +166,7 @@ public class ParserTest {
 
     @Test
     public void testRepeatUntilFailInstaFail() {
-        Parser parser = repeatUntil(literal('a'), Parser::repeatUntilFail);
+        Parser parser = repeatUntil(literal('a'));
         ParserResult result = parser.parse("baaabcasd*asd");
         Optional<List<String>> resultOptional = result.getParsed();
         assertThat(resultOptional.isPresent(), equalTo(false));
@@ -213,6 +214,38 @@ public class ParserTest {
     }
 
     @Test
+    public void testChain() {
+        Parser parser = literal('a');
+        parser = parser.chain((result) -> {
+            for (String resultItem : result) {
+                System.out.print(resultItem + ", ");
+            }
+            if(result.size() != 1 || !result.get(0).equals("a")) {
+                Assert.fail("Result was not size 1, or first result was not a");
+                return fail();
+            } else {
+                return repeatUntil(anyExcept('c'));
+            }
+        });
+        ParserResult result1 = parser.parse("bcccccc");
+
+        Optional<?> resultOptional1 = result1.getParsed();
+
+        assertThat(resultOptional1.isPresent(), equalTo(false));
+
+        ParserResult result2 = parser.parse("accc");
+
+        List<String> result2List = result2.getParsed().get();
+
+        assertThat(result2List.get(0), equalTo("a"));
+        assertThat(result2List.get(1), equalTo("c"));
+        assertThat(result2List.get(2), equalTo("c"));
+        assertThat(result2List.get(3), equalTo("c"));
+    }
+
+
+
+    @Test
     public void testRealParsing() {
 //        Parser parseUntilStar = repeatUntil(anyExcept('*'), Parser::repeatUntilFail);
 //        Parser parseBold = merge(and(any(), parseUntilStar, any()));
@@ -242,3 +275,4 @@ public class ParserTest {
     }
 
 }
+//Problems with this approach: Non serializable, difficult to display, difficult to debug. Difficult to do everything.
